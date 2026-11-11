@@ -1,0 +1,78 @@
+services:
+  # Open-source HTTP reverse proxy and load balancer designed for cloud-native infrastructure, 
+  # microservices, and containerized environments.
+  traefik:
+    image: "traefik:v3.7.14" # Use a specific, stable version for reliability.
+    container_name: "traefik"
+    security_opt:
+      - "no-new-privileges:true" # Hardening: no setuid/setgid elevation.
+    deploy:
+      resources:
+        limits:
+          memory: 256M # Traefik is efficient; 256MB is plenty.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ${ROOT_PATH:-.}/tools/traefik:/etc/traefik # Mount config directory (GitOps ready).
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Read-only access for service discovery.
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - iv0ks-dev
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=namecheap"
+      - "traefik.http.routers.dashboard.tls.domains[0].main=*.iv0ks.dev"
+      - "traefik.http.routers.dashboard.tls.domains[0].sans=iv0ks.dev"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.iv0ks.dev`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+
+  # PHP-FPM: runs the Deskmint PHP code. Not exposed directly — nginx talks to
+  # it over the internal network on port 9000.
+  deskmint-fpm:
+    build:
+      context: .
+      dockerfile: docker/php-fpm.Dockerfile
+    image: ghcr.io/iv0ks/deskmint-fpm:latest
+    container_name: deskmint-fpm
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - iv0ks-dev
+
+  # nginx: serves static files and forwards *.php to the php-fpm container.
+  # This is the public face of the helpdesk (PHP helpdesk app, CWE-22 lab).
+  deskmint:
+    build:
+      context: .
+      dockerfile: docker/nginx.Dockerfile
+    image: ghcr.io/iv0ks/deskmint:latest
+    container_name: deskmint
+    restart: unless-stopped
+    depends_on:
+      - deskmint-fpm
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "8099:8080" # direct access: http://localhost:8099
+    networks:
+      - iv0ks-dev
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deskmint.rule=Host(`deskmint.iv0ks.dev`)"
+      - "traefik.http.routers.deskmint.entrypoints=websecure"
+      - "traefik.http.routers.deskmint.tls=true"
+      - "traefik.http.routers.deskmint.tls.certresolver=namecheap"
+      - "traefik.http.services.deskmint.loadbalancer.server.port=8080"
+
+networks:
+  iv0ks-dev:
+    external: true
