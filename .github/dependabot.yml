@@ -18,9 +18,9 @@ updates:
     cooldown:
       default-days: 7
 
-  # Dockerfile updates (both images live under docker/).
+  # Dockerfile updates (single image at the repo root).
   - package-ecosystem: "docker"
-    directories: ["/docker"]
+    directories: ["/"]
     schedule:
       interval: "daily"
       time: "06:00"
