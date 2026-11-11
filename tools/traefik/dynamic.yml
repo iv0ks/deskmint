@@ -1,0 +1,15 @@
+http:
+  routers:
+    # Deskmint router.
+    deskmint:
+      rule: "Host(`deskmint.iv0ks.dev`)"
+      entryPoints:
+        - websecure
+      service: deskmint
+      tls: { certResolver: namecheap }
+
+  services:
+    deskmint:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8099/"
