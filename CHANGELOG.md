@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/iv0ks/deskmint/compare/v1.0.0...v1.0.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* drop composer builder stage and vendor copy (no runtime deps) ([891de63](https://github.com/iv0ks/deskmint/commit/891de6387a5dd57a43919be8fa3d26b8b70ebc2f))
+
 ## [1.0.0](https://github.com/iv0ks/deskmint/compare/v1.0.0...v1.0.0) (2026-11-11)
 
 
