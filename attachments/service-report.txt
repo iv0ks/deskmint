@@ -1,0 +1,5 @@
+Service report — printer HP-3F (error E-204)
+Technician: field.ops@northwind.example
+Action: replaced fuser unit, ran calibration
+Result: resolved, 50-page test print OK
+Date: 2024-06-28

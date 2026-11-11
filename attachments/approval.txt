@@ -1,0 +1,5 @@
+Approval — additional Figma seat
+Requested by: tom.becker@northwind.example
+Approved by:  lead.design@northwind.example
+Date: 2024-07-02
+Cost center: DESIGN-04

@@ -1,0 +1,6 @@
+[2024-07-03 09:01:12] INFO  vpn: connecting to gw-eu-1.northwind.example
+[2024-07-03 09:01:13] INFO  vpn: tunnel established (proto=udp mtu=1400)
+[2024-07-03 09:06:41] WARN  vpn: keepalive timeout, renegotiating
+[2024-07-03 09:06:44] INFO  vpn: tunnel re-established
+[2024-07-03 09:11:58] WARN  vpn: keepalive timeout, renegotiating
+[2024-07-03 09:12:02] ERROR vpn: peer reset connection (code 0x1f)
