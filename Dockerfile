@@ -1,26 +1,6 @@
 # Single source of truth for the PHP version.
 ARG PHP_VERSION=8.3
 
-######################################################################################################
-#############################                  STAGE 1: BUILD                   ######################
-######################################################################################################
-
-# Install composer dependencies in a dedicated stage so the runtime image stays
-# free of composer and the dev toolchain. (There are no runtime deps today, but
-# this keeps the pattern ready and the layer cached.)
-FROM php:${PHP_VERSION}-apache AS builder
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /build
-COPY composer.json composer.lock* ./
-RUN composer install --no-dev --no-interaction --no-progress --prefer-dist \
-    || echo "no composer dependencies to install"
-
-######################################################################################################
-#############################                  STAGE 2: RUNTIME                 ######################
-######################################################################################################
-
 FROM php:${PHP_VERSION}-apache AS runtime
 
 # Apply available OS security patches on top of the base image.
@@ -39,10 +19,11 @@ RUN sed -ri 's!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!'
 WORKDIR /app
 
 # Application code (public front controllers + src) and the served attachments.
+# The app uses plain `require` includes (no composer runtime deps), so there is
+# no vendor/ to copy — composer is only used for the dev toolchain in CI.
 COPY src ./src
 COPY public ./public
 COPY attachments ./attachments
-COPY --from=builder /build/vendor ./vendor
 
 # Bake the challenge flag INTO the image at build time, at /app/flag.txt —
 # OUTSIDE the served attachments/ directory on purpose, so path traversal has a
