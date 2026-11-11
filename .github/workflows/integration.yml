@@ -15,7 +15,7 @@ on:
     # NOTE: This files only should be modified in release-please prs.
     paths-ignore:
       - '.release-please-manifest.json'
-      - 'composer.json'
+      - 'version.txt'
       - 'CHANGELOG.md'
 
 # Cancel an in-progress run when new commits are pushed to the same PR, so we
