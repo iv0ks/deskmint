@@ -14,13 +14,13 @@ The repository is organised so the vulnerable code is easy to find and reason
 about. Three areas, clearly separated: the **application** (PHP) with its public
 front controllers in `public/` and its logic in `src/`, the **served data** in
 `attachments/` (the directory the app is *meant* to expose), and the **tooling**
-around it (Docker for nginx + php-fpm, CI/CD, linters). The challenge flag is
-deliberately kept *out* of both the repo and the served directory — see the note
-under the tree.
+around it (Docker image with Apache + mod_php, CI/CD, linters). The challenge
+flag is deliberately kept *out* of both the repo and the served directory — see
+the note under the tree.
 
 ```
 deskmint/
-├── public/                 # web root (served by nginx)
+├── public/                 # web root (DocumentRoot, served by Apache)
 │   ├── index.php           # ticket list (home)
 │   ├── ticket.php          # single ticket view + attachments
 │   ├── attachment.php      # the VULNERABLE download endpoint
@@ -33,12 +33,12 @@ deskmint/
 │   └── View.php            # layout / rendering helpers
 ├── attachments/            # served ticket files (the "allowed" directory)
 ├── tests/                  # PHPUnit tests (assert the traversal)
-├── docker/                 # nginx.Dockerfile · php-fpm.Dockerfile · nginx.conf
 ├── tools/traefik/          # reverse-proxy config (static + dynamic routing)
 ├── SOLUTION.md             # exploit writeup + the fix (spoilers)
 ├── SECURITY.md             # security policy (it's a lab — read before reporting)
 ├── .github/workflows/      # integration · delivery · security · release
-├── docker-compose.yml      # nginx + php-fpm + traefik stack
+├── Dockerfile              # single image: php:8.3-apache (mod_php)
+├── docker-compose.yml      # deskmint + traefik stack
 ├── composer.json           # autoload + dev tools (phpunit, php-cs-fixer, phpstan)
 ├── phpstan.neon · .php-cs-fixer.php · phpunit.xml
 └── .env.example            # Traefik ACME credentials template (copy to .env)
@@ -46,7 +46,7 @@ deskmint/
 
 The PHP code lives in `public/` + `src/` and reads its files from
 `attachments/`, just like a real helpdesk would. The target `flag.txt` is
-**not** in the repo: the php-fpm image writes it to `/app/flag.txt` at build
+**not** in the repo: the Docker image writes it to `/app/flag.txt` at build
 time — *outside* the served `attachments/` dir — so traversal can reach it while
 the flag stays out of version control.
 
@@ -54,12 +54,10 @@ the flag stays out of version control.
 
 ## 🚀 The Lab
 
-Deskmint runs as a Docker Compose stack with three services:
+Deskmint runs as a Docker Compose stack:
 
-- **`deskmint`** — nginx, the public web server (serves static files, forwards
-  PHP), published on port `8099`.
-- **`deskmint-fpm`** — php-fpm, runs the PHP code (not exposed directly; nginx
-  talks to it over the internal network).
+- **`deskmint`** — the helpdesk app: a single `php:8.3-apache` image where
+  Apache serves static files and executes the PHP directly. Published on `8099`.
 - **`traefik`** — a reverse proxy that serves the app over HTTPS on a real
   hostname. Optional: only needed for the domain-based access.
 
@@ -70,13 +68,13 @@ create it once before the first run:
 docker network create iv0ks-dev
 ```
 
-#### Option A — the app (nginx + php-fpm)
+#### Option A — just the app
 
-Start the two app services (Compose skips `traefik` when you name services
-explicitly):
+Start only the `deskmint` service (Compose skips `traefik` when you name a
+service explicitly):
 
 ```bash
-docker compose up -d --build deskmint deskmint-fpm
+docker compose up -d --build deskmint
 ```
 
 The helpdesk is now reachable directly at:
@@ -129,7 +127,7 @@ The flag has the format `FLAG{...}`.
 |---|---|
 | **Vulnerability** | Path Traversal (CWE-22) |
 | **Difficulty** | ⭐⭐⭐ Level 3 — naive non-recursive `../` filter |
-| **Stack** | PHP · nginx · php-fpm |
+| **Stack** | PHP · Apache (mod_php) |
 | **Entry point** | `GET /attachment.php?file=<name>` |
 
 <details>
@@ -159,7 +157,7 @@ with sane engineering practices:
   (secret scanning), `hadolint` (Dockerfile lint), whitespace/EOF fixers.
 - **Centralized CI/CD** via reusable workflows in
   [`iv0ks/cicd-hub`](https://github.com/iv0ks/cicd-hub): Integration
-  (secrets → vuln → lint → tests on PR), Delivery (build & push both images to
+  (secrets → vuln → lint → tests on PR), Delivery (build & push the image to
   GHCR on tag), Security (scheduled CVE scan), Release (release-please).
 - **Dependabot**: daily updates for Composer, Docker and GitHub Actions.
 - **Hardened containers**: multi-stage build, non-root user, OS patch layer.
