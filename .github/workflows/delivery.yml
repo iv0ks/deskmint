@@ -1,0 +1,48 @@
+# Continuous Delivery workflow.
+#
+# Builds and publishes the Docker images, then scans them. Triggered only by semver release tags (v1.2.3) created by release-please, so arbitrary tags never trigger a publish to GHCR.
+#
+# NOTE: Deskmint ships TWO images (nginx + php-fpm), so the reusable build-push
+# workflow is called once per Dockerfile via a matrix.
+name: Delivery
+
+# Define the event that triggers the workflow.
+# Run only on semver tags (vMAJOR.MINOR.PATCH), not on every tag.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+# Only one delivery per tag at a time.
+concurrency:
+  group: delivery-${{ github.ref }}
+  cancel-in-progress: false
+
+# Required permissions: read the repo and write packages to GHCR.
+permissions:
+  contents: read
+  packages: write
+
+# Define the jobs that run in the workflow.
+jobs:
+  # Job-1: Build and push both Docker images (nginx + php-fpm) to GHCR.
+  build:
+    name: Build
+    strategy:
+      matrix:
+        include:
+          - image: deskmint
+            dockerfile: docker/nginx.Dockerfile
+          - image: deskmint-fpm
+            dockerfile: docker/php-fpm.Dockerfile
+    uses: iv0ks/cicd-hub/.github/workflows/build-push.yml@main
+    with:
+      image: ${{ matrix.image }}
+      dockerfile: ${{ matrix.dockerfile }}
+
+  # Job-2: Scan the published images for vulnerabilities. Runs only if the
+  # build succeeded.
+  image-scan:
+    name: Image
+    needs: build
+    uses: iv0ks/cicd-hub/.github/workflows/image-scan.yml@main
