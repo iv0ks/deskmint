@@ -34,35 +34,17 @@ services:
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
 
-  # PHP-FPM: runs the Deskmint PHP code. Not exposed directly — nginx talks to
-  # it over the internal network on port 9000.
-  deskmint-fpm:
-    build:
-      context: .
-      dockerfile: docker/php-fpm.Dockerfile
-    image: ghcr.io/iv0ks/deskmint-fpm:latest
-    container_name: deskmint-fpm
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - iv0ks-dev
-
-  # nginx: serves static files and forwards *.php to the php-fpm container.
-  # This is the public face of the helpdesk (PHP helpdesk app, CWE-22 lab).
+  # PHP helpdesk app (Apache + mod_php in a single image) — path traversal
+  # (CWE-22) lab. Apache serves static files and executes the PHP directly.
   deskmint:
-    build:
-      context: .
-      dockerfile: docker/nginx.Dockerfile
+    build: .
     image: ghcr.io/iv0ks/deskmint:latest
     container_name: deskmint
     restart: unless-stopped
-    depends_on:
-      - deskmint-fpm
     security_opt:
       - no-new-privileges:true
     ports:
-      - "8099:8080" # direct access: http://localhost:8099
+      - "8099:80" # direct access: http://localhost:8099
     networks:
       - iv0ks-dev
     labels:
@@ -71,7 +53,7 @@ services:
       - "traefik.http.routers.deskmint.entrypoints=websecure"
       - "traefik.http.routers.deskmint.tls=true"
       - "traefik.http.routers.deskmint.tls.certresolver=namecheap"
-      - "traefik.http.services.deskmint.loadbalancer.server.port=8080"
+      - "traefik.http.services.deskmint.loadbalancer.server.port=80"
 
 networks:
   iv0ks-dev:
