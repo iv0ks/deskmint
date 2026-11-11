@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/iv0ks/deskmint/compare/v1.0.1...v1.0.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* pin phpunit and phpstan to versions compatible with php 8.3 ci ([797d1c2](https://github.com/iv0ks/deskmint/commit/797d1c2fbf911a840680b651b0bfb7ae91d64380))
+
 ## [1.0.1](https://github.com/iv0ks/deskmint/compare/v1.0.0...v1.0.1) (2026-11-11)
 
 
