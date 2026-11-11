@@ -1,4 +1,4 @@
-# Single source of truth for the PHP version used by all stages.
+# Single source of truth for the PHP version.
 ARG PHP_VERSION=8.3
 
 ######################################################################################################
@@ -6,18 +6,14 @@ ARG PHP_VERSION=8.3
 ######################################################################################################
 
 # Install composer dependencies in a dedicated stage so the runtime image stays
-# free of composer and the dev toolchain.
-FROM php:${PHP_VERSION}-fpm-alpine AS builder
+# free of composer and the dev toolchain. (There are no runtime deps today, but
+# this keeps the pattern ready and the layer cached.)
+FROM php:${PHP_VERSION}-apache AS builder
 
-# composer binary from the official composer image.
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /build
-
-# Only the manifests first, to leverage layer caching for dependencies.
 COPY composer.json composer.lock* ./
-
-# Install runtime (non-dev) dependencies only.
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist \
     || echo "no composer dependencies to install"
 
@@ -25,15 +21,20 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist \
 #############################                  STAGE 2: RUNTIME                 ######################
 ######################################################################################################
 
-FROM php:${PHP_VERSION}-fpm-alpine AS runtime
+FROM php:${PHP_VERSION}-apache AS runtime
 
 # Apply available OS security patches on top of the base image.
-RUN apk upgrade --no-cache
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user to run php-fpm.
-RUN addgroup -g 10001 app && adduser -u 10001 -G app -S -H app
-
-ENV DATA_ROOT="/app"
+# Serve the app from public/ instead of the default /var/www/html, and make the
+# DATA_ROOT env var visible to PHP (Apache strips the environment otherwise).
+ENV APACHE_DOCUMENT_ROOT=/app/public \
+    DATA_ROOT=/app
+RUN sed -ri 's!DocumentRoot /var/www/html!DocumentRoot ${APACHE_DOCUMENT_ROOT}!' \
+        /etc/apache2/sites-available/000-default.conf \
+    && sed -ri 's!<Directory /var/www/>!<Directory /app/public/>!' /etc/apache2/apache2.conf \
+    && printf 'PassEnv DATA_ROOT\n' > /etc/apache2/conf-available/deskmint.conf \
+    && a2enconf deskmint
 
 WORKDIR /app
 
@@ -41,8 +42,6 @@ WORKDIR /app
 COPY src ./src
 COPY public ./public
 COPY attachments ./attachments
-
-# Vendor dir from the builder (present only if there were dependencies).
 COPY --from=builder /build/vendor ./vendor
 
 # Bake the challenge flag INTO the image at build time, at /app/flag.txt —
@@ -50,19 +49,9 @@ COPY --from=builder /build/vendor ./vendor
 # target. The flag is intentionally NOT committed to the repo (it would spoil
 # the lab). Override with --build-arg FLAG=...
 ARG FLAG=FLAG{DESKMINT_ROOT_TICKET}
-RUN printf '%s\n' "$FLAG" > /app/flag.txt \
-    && chown -R app:app /app
+RUN printf '%s\n' "$FLAG" > /app/flag.txt
 
-# Make php-fpm listen on a TCP socket the nginx container can reach.
-RUN { \
-      echo '[www]'; \
-      echo 'user = app'; \
-      echo 'group = app'; \
-      echo 'listen = 9000'; \
-    } > /usr/local/etc/php-fpm.d/zz-deskmint.conf
+EXPOSE 80
 
-USER app
-
-EXPOSE 9000
-
-CMD ["php-fpm"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD php -r '$c=@file_get_contents("http://127.0.0.1:80/index.php");exit($c!==false?0:1);'
