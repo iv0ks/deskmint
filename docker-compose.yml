@@ -38,7 +38,7 @@ services:
   # (CWE-22) lab. Apache serves static files and executes the PHP directly.
   deskmint:
     build: .
-    image: ghcr.io/iv0ks/deskmint:latest
+    image: ghcr.io/iv0ks/deskmint:v1.0.1
     container_name: deskmint
     restart: unless-stopped
     security_opt:
