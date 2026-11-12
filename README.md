@@ -145,44 +145,5 @@ than once? What happens to <code>....//</code> after a single strip of
 
 A full walkthrough lives in [SOLUTION.md](SOLUTION.md) (spoilers!).
 
-<br>
-
-## 🧰 About this repo (DevSecOps showcase)
-
-Beyond the vulnerability, this repo is a template for shipping a small service
-with sane engineering practices:
-
-- **Conventional Commits** enforced via **commitlint** (pre-commit hook).
-- **pre-commit** suite: `php-cs-fixer` + `phpstan` (local hooks), `gitleaks`
-  (secret scanning), `hadolint` (Dockerfile lint), whitespace/EOF fixers.
-- **Centralized CI/CD** via reusable workflows in
-  [`iv0ks/cicd-hub`](https://github.com/iv0ks/cicd-hub): Integration
-  (secrets → vuln → lint → tests on PR), Delivery (build & push the image to
-  GHCR on tag), Security (scheduled CVE scan), Release (release-please).
-- **Dependabot**: daily updates for Composer, Docker and GitHub Actions.
-- **Hardened containers**: multi-stage build, non-root user, OS patch layer.
-
-> 💡 **Teaching note:** image/dependency scanners look for *known CVEs*. They
-> will **not** flag Deskmint's path traversal, because it is a business-logic
-> flaw in our own code, not a vulnerable dependency. Catching that class of bug
-> needs SAST / manual review / DAST — exactly what you're practicing here.
-
-### Running the tests
-
-```bash
-composer install
-composer test     # phpunit
-composer stan     # phpstan
-composer lint     # php-cs-fixer (dry-run)
-```
-
-The suite documents the behaviour executably: a listed attachment resolves
-inside the directory, a plain `../` is neutralised, and `....//` escapes it and
-reaches the flag — so if someone "fixes" the single-pass filter, the exploit
-test turns red.
-
-<br>
-
-## 📄 License
-
-[MIT](LICENSE) — see also [SECURITY.md](SECURITY.md).
+New to path traversal, or want a guided, non-spoiler approach? Start with the
+**[Learning Guide](GUIDE.md)**.
